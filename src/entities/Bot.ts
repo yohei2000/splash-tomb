@@ -6,7 +6,7 @@ import { Player } from './Player';
 
 export class Bot extends Phaser.Physics.Arcade.Sprite {
   readonly team: Team = 'orange';
-  readonly maxHp = 100;
+  readonly maxHp = 50;
   hp = this.maxHp;
   isAlive = true;
 
@@ -23,7 +23,7 @@ export class Bot extends Phaser.Physics.Arcade.Sprite {
     super(scene, x, y, texture);
     scene.add.existing(this);
     scene.physics.add.existing(this);
-    this.setCollideWorldBounds(true).setDepth(4).setCircle(14, 2, 2);
+    this.setDisplaySize(60, 60).setCollideWorldBounds(true).setDepth(4).setCircle(40, 40, 40);
   }
 
   updateBot(player: Player): void {
@@ -36,7 +36,7 @@ export class Bot extends Phaser.Physics.Arcade.Sprite {
     const distance = toPlayer.length();
     const direction = distance > 0 ? toPlayer.normalize() : toPlayer;
     const ink = this.inkGrid.getInkAt(this.x, this.y);
-    const multiplier = ink === this.team ? 1.35 : ink === 'blue' ? 0.55 : 1;
+    const multiplier = ink === this.team ? 1.35 : ink === 'blue' ? 0.5 : 1;
 
     if (distance > 300) {
       this.setVelocity(direction.x * 155 * multiplier, direction.y * 155 * multiplier);

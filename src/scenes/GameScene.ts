@@ -37,6 +37,11 @@ export class GameScene extends Phaser.Scene {
     super('GameScene');
   }
 
+  preload(): void {
+    this.load.image('player-blue', 'assets/player-squid.png');
+    this.load.image('bot-orange', 'assets/enemy-crab.png');
+  }
+
   create(): void {
     this.createTextures();
     this.physics.world.setBounds(0, 0, MAP_WIDTH, MAP_HEIGHT);
@@ -127,8 +132,6 @@ export class GameScene extends Phaser.Scene {
       graphics.destroy();
     };
 
-    makeCircle('player-blue', TEAM_COLORS.blue, 18);
-    makeCircle('bot-orange', TEAM_COLORS.orange, 18);
     makeCircle('bullet-blue', TEAM_COLORS.blue, 7, 0xbce0ff);
     makeCircle('bullet-orange', TEAM_COLORS.orange, 7, 0xffd2ad);
   }
@@ -207,7 +210,7 @@ export class GameScene extends Phaser.Scene {
       strokeThickness: 4,
     };
     this.timerText = this.add.text(16, 14, 'TIME 90', textStyle).setScrollFactor(0).setDepth(100);
-    this.hpText = this.add.text(16, 40, 'HP 100', textStyle).setScrollFactor(0).setDepth(100);
+    this.hpText = this.add.text(16, 40, 'HP 50', textStyle).setScrollFactor(0).setDepth(100);
     this.coverageText = this.add
       .text(this.scale.width / 2, 14, 'BLUE 0  ORANGE 0', { ...textStyle, fontSize: '14px' })
       .setOrigin(0.5, 0)

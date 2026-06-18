@@ -5,7 +5,7 @@ import { Team } from '../types';
 
 export class Player extends Phaser.Physics.Arcade.Sprite {
   readonly team: Team = 'blue';
-  readonly maxHp = 100;
+  readonly maxHp = 50;
   hp = this.maxHp;
   isAlive = true;
 
@@ -24,7 +24,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     super(scene, x, y, texture);
     scene.add.existing(this);
     scene.physics.add.existing(this);
-    this.setCollideWorldBounds(true).setDepth(4).setCircle(14, 2, 2);
+    this.setDisplaySize(58, 58).setCollideWorldBounds(true).setDepth(4).setCircle(40, 40, 40);
 
     const keyboard = scene.input.keyboard!;
     this.cursors = keyboard.createCursorKeys();
@@ -56,7 +56,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     if (movement.lengthSq() > 1) movement.normalize();
 
     const ink = this.inkGrid.getInkAt(this.x, this.y);
-    const multiplier = ink === this.team ? 1.35 : ink === 'orange' ? 0.55 : 1;
+    const multiplier = ink === this.team ? 1.35 : ink === 'orange' ? 0.5 : 1;
     this.setVelocity(movement.x * 210 * multiplier, movement.y * 210 * multiplier);
   }
 

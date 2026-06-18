@@ -51,4 +51,9 @@ npm.cmd run preview
 - `src/systems/InkGrid.ts`: 16pxグリッドの `none / blue / orange` 管理と塗り
 - `src/systems/Weapon.ts`: 射撃クールダウンと弾生成
 
-現在のキャラクターと弾は `GameScene.createTextures()` で生成した仮テクスチャです。画像アセットへ置き換える場合は、同じテクスチャキーを `preload()` でロードすれば、ゲームロジック側を大きく変更せず差し替えられます。
+キャラクターはAI生成した海洋生物モチーフの画像を使用しています。
+
+- `public/assets/player-squid.png`: 青チームのイカ
+- `public/assets/enemy-crab.png`: オレンジチームのカニ
+
+弾は `GameScene.createTextures()` で生成しています。キャラクター画像は同じテクスチャキーを保ったまま差し替えできます。
