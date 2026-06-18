@@ -77,26 +77,6 @@ export class GameScene extends Phaser.Scene {
     });
     this.bots = [...this.allyBots, ...this.enemyBots];
 
-    this.physics.add.overlap(this.bullets, this.player, (bulletObject) => {
-      const bullet = bulletObject as Bullet;
-      if (bullet.team !== this.player.team && this.player.isAlive) {
-        const died = this.player.takeDamage(bullet.damage);
-        bullet.impact();
-        if (died) this.scheduleRespawn(this.player, 'blue');
-      }
-    });
-
-    for (const bot of this.bots) {
-      this.physics.add.overlap(this.bullets, bot, (bulletObject) => {
-        const bullet = bulletObject as Bullet;
-        if (bullet.team !== bot.team && bot.isAlive) {
-          const died = bot.takeDamage(bullet.damage);
-          bullet.impact();
-          if (died) this.scheduleRespawn(bot, bot.team);
-        }
-      });
-    }
-
     this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
     this.cameras.main.setZoom(1);
     this.setupInput();
@@ -118,7 +98,12 @@ export class GameScene extends Phaser.Scene {
     for (const bot of this.enemyBots) {
       bot.updateBot(this.findNearestTarget(bot, blueTeam));
     }
-    for (const bullet of this.bullets.getChildren() as Bullet[]) bullet.updateBullet(delta);
+    for (const bullet of this.bullets.getChildren() as Bullet[]) {
+      if (!bullet.active) continue;
+      this.paintBulletTrail(bullet);
+      this.resolveBulletHit(bullet);
+      bullet.updateBullet(delta);
+    }
 
     if (this.aimPointerId !== null && this.player.isAlive) {
       const angle = Phaser.Math.Angle.Between(
@@ -295,6 +280,51 @@ export class GameScene extends Phaser.Scene {
 
   private handleBulletImpact(bullet: Bullet): void {
     this.inkGrid.paintCircle(bullet.x, bullet.y, bullet.paintRadius, bullet.team);
+  }
+
+  private paintBulletTrail(bullet: Bullet): void {
+    const line = bullet.getTravelLine();
+    const length = Phaser.Geom.Line.Length(line);
+    const steps = Math.max(1, Math.ceil(length / 24));
+
+    for (let step = 1; step <= steps; step += 1) {
+      const t = step / steps;
+      this.inkGrid.paintCircle(
+        Phaser.Math.Linear(line.x1, line.x2, t),
+        Phaser.Math.Linear(line.y1, line.y2, t),
+        18,
+        bullet.team,
+      );
+    }
+  }
+
+  private resolveBulletHit(bullet: Bullet): void {
+    if (!bullet.active) return;
+
+    const targets: Array<Player | Bot> =
+      bullet.team === 'blue' ? this.enemyBots : [this.player, ...this.allyBots];
+    const line = bullet.getTravelLine();
+    let hitTarget: Player | Bot | undefined;
+    let nearestDistanceSq = Number.POSITIVE_INFINITY;
+
+    for (const target of targets) {
+      if (!target.isAlive) continue;
+      const hitCircle = new Phaser.Geom.Circle(target.x, target.y, 44);
+      if (!Phaser.Geom.Intersects.LineToCircle(line, hitCircle)) continue;
+
+      const distanceSq = Phaser.Math.Distance.Squared(line.x1, line.y1, target.x, target.y);
+      if (distanceSq < nearestDistanceSq) {
+        hitTarget = target;
+        nearestDistanceSq = distanceSq;
+      }
+    }
+
+    if (!hitTarget) return;
+
+    bullet.setPosition(hitTarget.x, hitTarget.y);
+    const died = hitTarget.takeDamage(bullet.damage);
+    bullet.impact();
+    if (died) this.scheduleRespawn(hitTarget, hitTarget.team);
   }
 
   private findNearestTarget<T extends Player | Bot>(

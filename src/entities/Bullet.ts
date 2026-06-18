@@ -3,10 +3,14 @@ import { Team } from '../types';
 
 export class Bullet extends Phaser.Physics.Arcade.Sprite {
   readonly team: Team;
-  readonly damage = 24;
-  readonly paintRadius = 64;
+  readonly damage = 50;
+  readonly paintRadius = 72;
 
-  private remainingLife = 1000;
+  private remainingLife = 450;
+  private traveledDistance = 0;
+  private readonly maxDistance = 1100;
+  private previousX: number;
+  private previousY: number;
   private hasImpacted = false;
 
   constructor(
@@ -20,6 +24,8 @@ export class Bullet extends Phaser.Physics.Arcade.Sprite {
   ) {
     super(scene, x, y, texture);
     this.team = team;
+    this.previousX = x;
+    this.previousY = y;
     scene.add.existing(this);
     scene.physics.add.existing(this);
     this.setDepth(5).setScale(1.45);
@@ -30,11 +36,23 @@ export class Bullet extends Phaser.Physics.Arcade.Sprite {
   updateBullet(delta: number): void {
     if (!this.active) return;
 
+    this.traveledDistance += Phaser.Math.Distance.Between(
+      this.previousX,
+      this.previousY,
+      this.x,
+      this.y,
+    );
+    this.previousX = this.x;
+    this.previousY = this.y;
     this.remainingLife -= delta;
     const outsideMap = this.x < 0 || this.y < 0 || this.x > 1600 || this.y > 1200;
-    if (this.remainingLife <= 0 || outsideMap) {
+    if (this.remainingLife <= 0 || this.traveledDistance >= this.maxDistance || outsideMap) {
       this.impact();
     }
+  }
+
+  getTravelLine(): Phaser.Geom.Line {
+    return new Phaser.Geom.Line(this.previousX, this.previousY, this.x, this.y);
   }
 
   impact(): void {

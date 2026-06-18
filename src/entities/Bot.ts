@@ -38,10 +38,10 @@ export class Bot extends Phaser.Physics.Arcade.Sprite {
     const ink = this.inkGrid.getInkAt(this.x, this.y);
     const multiplier = ink === this.team ? 1.35 : ink === 'none' ? 1 : 0.5;
 
-    if (distance > 420) {
+    if (distance > 700) {
       this.setVelocity(direction.x * 155 * multiplier, direction.y * 155 * multiplier);
     } else {
-      const desired = distance < 260 ? -0.55 : 0.15;
+      const desired = distance < 360 ? -0.55 : 0.15;
       const strafe = new Phaser.Math.Vector2(-direction.y, direction.x).scale(this.strafeDirection);
       const move = direction.clone().scale(desired).add(strafe.scale(0.75)).normalize();
       this.setVelocity(move.x * 145 * multiplier, move.y * 145 * multiplier);
