@@ -27,6 +27,8 @@ export class GameScene extends Phaser.Scene {
   private overlayShade!: Phaser.GameObjects.Rectangle;
   private resultText!: Phaser.GameObjects.Text;
   private restartText!: Phaser.GameObjects.Text;
+  private visionOverlay!: Phaser.GameObjects.Rectangle;
+  private visionMaskGraphics!: Phaser.GameObjects.Graphics;
 
   private joystickBase!: Phaser.GameObjects.Arc;
   private joystickKnob!: Phaser.GameObjects.Arc;
@@ -35,6 +37,7 @@ export class GameScene extends Phaser.Scene {
   private aimPointerId: number | null = null;
   private joystickOrigin = new Phaser.Math.Vector2();
   private aimWorld = new Phaser.Math.Vector2();
+  private playerFacingAngle = 0;
 
   constructor() {
     super('GameScene');
@@ -57,6 +60,7 @@ export class GameScene extends Phaser.Scene {
     const impact = (bullet: Bullet) => this.handleBulletImpact(bullet);
     const playerWeapon = new Weapon(this, 'blue', 'bullet-blue', this.bullets, impact, 210);
     this.player = new Player(this, 250, MAP_HEIGHT / 2, 'player-blue', this.inkGrid, playerWeapon);
+    this.player.setDepth(95).setRotation(-Math.PI / 2);
 
     const allySpawnPoints = [
       new Phaser.Math.Vector2(300, MAP_HEIGHT / 2 - 120),
@@ -81,6 +85,7 @@ export class GameScene extends Phaser.Scene {
     this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
     this.cameras.main.setZoom(0.75);
     this.setupInput();
+    this.createVisionMask();
     this.createHud();
 
     this.inkGrid.paintCircle(this.player.x, this.player.y, 100, 'blue');
@@ -112,7 +117,8 @@ export class GameScene extends Phaser.Scene {
         target.x,
         target.y,
       );
-      this.player.setRotation(angle);
+      this.playerFacingAngle = angle;
+      this.player.setRotation(angle - Math.PI / 2);
       this.aimMarker.setPosition(target.x, target.y).setVisible(true);
       this.player.weapon.fire(
         this.player.x,
@@ -123,6 +129,8 @@ export class GameScene extends Phaser.Scene {
     } else {
       this.aimMarker.setVisible(false);
     }
+
+    this.updateVisionMask();
 
     const remainingMs = Math.max(0, this.matchEndsAt - this.time.now);
     this.timerText.setText(`TIME ${Math.ceil(remainingMs / 1000)}`);
@@ -298,6 +306,7 @@ export class GameScene extends Phaser.Scene {
     this.overlay.add([this.overlayShade, this.resultText, this.restartText]);
 
     this.scale.on('resize', (size: Phaser.Structs.Size) => {
+      this.visionOverlay.setSize(size.width, size.height);
       this.coverageText.setX(size.width / 2);
       this.leftHint.setY(size.height - 32);
       this.rightHint.setPosition(size.width - 18, size.height - 32);
@@ -305,6 +314,44 @@ export class GameScene extends Phaser.Scene {
       this.resultText.setPosition(size.width / 2, size.height / 2);
       this.restartText.setPosition(size.width / 2, size.height / 2 + 100);
     });
+  }
+
+  private createVisionMask(): void {
+    this.visionOverlay = this.add
+      .rectangle(0, 0, this.scale.width, this.scale.height, 0x000000, 1)
+      .setOrigin(0)
+      .setScrollFactor(0)
+      .setDepth(90);
+    this.visionMaskGraphics = this.make.graphics({ x: 0, y: 0 }).setScrollFactor(0);
+    const mask = this.visionMaskGraphics.createGeometryMask();
+    mask.invertAlpha = true;
+    this.visionOverlay.setMask(mask);
+    this.updateVisionMask();
+  }
+
+  private updateVisionMask(): void {
+    if (!this.visionMaskGraphics || !this.player) return;
+
+    const camera = this.cameras.main;
+    const screenX = camera.x + (this.player.x - camera.worldView.x) * camera.zoom;
+    const screenY = camera.y + (this.player.y - camera.worldView.y) * camera.zoom;
+    const radius = Math.hypot(this.scale.width, this.scale.height) * 1.35;
+    const halfFov = Phaser.Math.DegToRad(45);
+
+    this.visionMaskGraphics.clear();
+    this.visionMaskGraphics.fillStyle(0xffffff, 1);
+    this.visionMaskGraphics.beginPath();
+    this.visionMaskGraphics.moveTo(screenX, screenY);
+    this.visionMaskGraphics.arc(
+      screenX,
+      screenY,
+      radius,
+      this.playerFacingAngle - halfFov,
+      this.playerFacingAngle + halfFov,
+      false,
+    );
+    this.visionMaskGraphics.closePath();
+    this.visionMaskGraphics.fillPath();
   }
 
   private handleBulletImpact(bullet: Bullet): void {
