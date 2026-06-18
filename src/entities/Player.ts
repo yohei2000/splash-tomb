@@ -12,6 +12,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   private readonly cursors: Phaser.Types.Input.Keyboard.CursorKeys;
   private readonly wasd: Record<'up' | 'down' | 'left' | 'right', Phaser.Input.Keyboard.Key>;
   private virtualMove = new Phaser.Math.Vector2();
+  private regenerationElapsed = 0;
 
   constructor(
     scene: Phaser.Scene,
@@ -40,11 +41,13 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.virtualMove.copy(direction);
   }
 
-  updatePlayer(): void {
+  updatePlayer(delta: number): void {
     if (!this.isAlive) {
       this.setVelocity(0);
       return;
     }
+
+    this.updateRegeneration(delta);
 
     const keyboardMove = new Phaser.Math.Vector2(
       Number(this.wasd.right.isDown || this.cursors.right.isDown) -
@@ -58,6 +61,19 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     const ink = this.inkGrid.getInkAt(this.x, this.y);
     const multiplier = ink === this.team ? 1.35 : ink === 'orange' ? 0.5 : 1;
     this.setVelocity(movement.x * 210 * multiplier, movement.y * 210 * multiplier);
+  }
+
+  private updateRegeneration(delta: number): void {
+    if (this.inkGrid.getInkAt(this.x, this.y) !== this.team || this.hp >= this.maxHp) {
+      this.regenerationElapsed = 0;
+      return;
+    }
+
+    this.regenerationElapsed += delta;
+    while (this.regenerationElapsed >= 1000) {
+      this.regenerationElapsed -= 1000;
+      this.hp = Math.min(this.maxHp, this.hp + 2);
+    }
   }
 
   takeDamage(amount: number): boolean {
@@ -76,6 +92,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
   respawn(x: number, y: number): void {
     this.hp = this.maxHp;
+    this.regenerationElapsed = 0;
     this.isAlive = true;
     this.enableBody(true, x, y, true, true);
   }

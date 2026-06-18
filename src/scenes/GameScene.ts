@@ -91,17 +91,16 @@ export class GameScene extends Phaser.Scene {
   update(_time: number, delta: number): void {
     if (this.matchOver) return;
 
-    this.player.updatePlayer();
+    this.player.updatePlayer(delta);
     const blueTeam: Array<Player | Bot> = [this.player, ...this.allyBots];
     for (const bot of this.allyBots) {
-      bot.updateBot(this.findNearestTarget(bot, this.enemyBots));
+      bot.updateBot(this.findNearestTarget(bot, this.enemyBots), delta);
     }
     for (const bot of this.enemyBots) {
-      bot.updateBot(this.findNearestTarget(bot, blueTeam));
+      bot.updateBot(this.findNearestTarget(bot, blueTeam), delta);
     }
     for (const bullet of this.bullets.getChildren() as Bullet[]) {
       if (!bullet.active) continue;
-      this.resolveBulletHit(bullet);
       bullet.updateBullet(delta);
     }
 
@@ -224,7 +223,7 @@ export class GameScene extends Phaser.Scene {
       this.aimWorld.x - this.player.x,
       this.aimWorld.y - this.player.y,
     );
-    const range = Phaser.Math.Clamp(direction.length(), 100, 360);
+    const range = Phaser.Math.Clamp(direction.length(), 50, 100);
     if (direction.lengthSq() === 0) direction.set(1, 0);
     return direction.normalize().scale(range).add(new Phaser.Math.Vector2(this.player.x, this.player.y));
   }
@@ -310,35 +309,15 @@ export class GameScene extends Phaser.Scene {
 
   private handleBulletImpact(bullet: Bullet): void {
     this.inkGrid.paintCircle(bullet.x, bullet.y, bullet.paintRadius, bullet.team);
-  }
-
-  private resolveBulletHit(bullet: Bullet): void {
-    if (!bullet.active) return;
-
     const targets: Array<Player | Bot> =
       bullet.team === 'blue' ? this.enemyBots : [this.player, ...this.allyBots];
-    const line = bullet.getTravelLine();
-    let hitTarget: Player | Bot | undefined;
-    let nearestDistanceSq = Number.POSITIVE_INFINITY;
 
     for (const target of targets) {
       if (!target.isAlive) continue;
-      const hitCircle = new Phaser.Geom.Circle(target.x, target.y, 44);
-      if (!Phaser.Geom.Intersects.LineToCircle(line, hitCircle)) continue;
-
-      const distanceSq = Phaser.Math.Distance.Squared(line.x1, line.y1, target.x, target.y);
-      if (distanceSq < nearestDistanceSq) {
-        hitTarget = target;
-        nearestDistanceSq = distanceSq;
-      }
+      if (Phaser.Math.Distance.Between(bullet.x, bullet.y, target.x, target.y) > 44) continue;
+      const died = target.takeDamage(bullet.damage);
+      if (died) this.scheduleRespawn(target, target.team);
     }
-
-    if (!hitTarget) return;
-
-    bullet.setPosition(hitTarget.x, hitTarget.y);
-    const died = hitTarget.takeDamage(bullet.damage);
-    bullet.impact();
-    if (died) this.scheduleRespawn(hitTarget, hitTarget.team);
   }
 
   private findNearestTarget<T extends Player | Bot>(

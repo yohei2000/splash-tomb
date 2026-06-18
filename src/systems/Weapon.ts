@@ -14,14 +14,14 @@ export class Weapon {
     private readonly cooldown = 260,
   ) {}
 
-  fire(x: number, y: number, angle: number, requestedRange = 320): boolean {
+  fire(x: number, y: number, angle: number, requestedRange = 100): boolean {
     const now = this.scene.time.now;
     if (now < this.nextShotAt) return false;
 
     this.nextShotAt = now + this.cooldown;
     const speed = 1800;
     const muzzleDistance = 24;
-    const range = Phaser.Math.Clamp(requestedRange, 100, 420);
+    const range = Phaser.Math.Clamp(requestedRange, 50, 100);
     const directionX = Math.cos(angle);
     const directionY = Math.sin(angle);
     const velocity = new Phaser.Math.Vector2(Math.cos(angle), Math.sin(angle)).scale(speed);

@@ -10,6 +10,7 @@ export class Bot extends Phaser.Physics.Arcade.Sprite {
   isAlive = true;
 
   private strafeDirection = Phaser.Math.RND.sign();
+  private regenerationElapsed = 0;
 
   constructor(
     scene: Phaser.Scene,
@@ -26,8 +27,15 @@ export class Bot extends Phaser.Physics.Arcade.Sprite {
     this.setDisplaySize(60, 60).setCollideWorldBounds(true).setDepth(4).setCircle(55, 25, 25);
   }
 
-  updateBot(target?: Player | Bot): void {
-    if (!this.isAlive || !target?.isAlive) {
+  updateBot(target: Player | Bot | undefined, delta: number): void {
+    if (!this.isAlive) {
+      this.setVelocity(0);
+      return;
+    }
+
+    this.updateRegeneration(delta);
+
+    if (!target?.isAlive) {
       this.setVelocity(0);
       return;
     }
@@ -38,10 +46,10 @@ export class Bot extends Phaser.Physics.Arcade.Sprite {
     const ink = this.inkGrid.getInkAt(this.x, this.y);
     const multiplier = ink === this.team ? 1.35 : ink === 'none' ? 1 : 0.5;
 
-    if (distance > 400) {
+    if (distance > 100) {
       this.setVelocity(direction.x * 155 * multiplier, direction.y * 155 * multiplier);
     } else {
-      const desired = distance < 260 ? -0.55 : 0.15;
+      const desired = distance < 65 ? -0.55 : 0.15;
       const strafe = new Phaser.Math.Vector2(-direction.y, direction.x).scale(this.strafeDirection);
       const move = direction.clone().scale(desired).add(strafe.scale(0.75)).normalize();
       this.setVelocity(move.x * 145 * multiplier, move.y * 145 * multiplier);
@@ -49,11 +57,24 @@ export class Bot extends Phaser.Physics.Arcade.Sprite {
         this.x,
         this.y,
         Math.atan2(target.y - this.y, target.x - this.x),
-        Math.min(distance, 400),
+        Math.min(distance, 100),
       );
     }
 
     if (Phaser.Math.Between(0, 500) === 0) this.strafeDirection *= -1;
+  }
+
+  private updateRegeneration(delta: number): void {
+    if (this.inkGrid.getInkAt(this.x, this.y) !== this.team || this.hp >= this.maxHp) {
+      this.regenerationElapsed = 0;
+      return;
+    }
+
+    this.regenerationElapsed += delta;
+    while (this.regenerationElapsed >= 1000) {
+      this.regenerationElapsed -= 1000;
+      this.hp = Math.min(this.maxHp, this.hp + 2);
+    }
   }
 
   takeDamage(amount: number): boolean {
@@ -72,6 +93,7 @@ export class Bot extends Phaser.Physics.Arcade.Sprite {
 
   respawn(x: number, y: number): void {
     this.hp = this.maxHp;
+    this.regenerationElapsed = 0;
     this.isAlive = true;
     this.enableBody(true, x, y, true, true);
   }
