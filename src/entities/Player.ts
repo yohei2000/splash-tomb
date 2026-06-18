@@ -72,7 +72,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.regenerationElapsed += delta;
     while (this.regenerationElapsed >= 1000) {
       this.regenerationElapsed -= 1000;
-      this.hp = Math.min(this.maxHp, this.hp + 2);
+      this.hp = Math.min(this.maxHp, this.hp + 10);
     }
   }
 

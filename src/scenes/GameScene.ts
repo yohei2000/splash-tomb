@@ -61,7 +61,15 @@ export class GameScene extends Phaser.Scene {
     this.bullets = this.physics.add.group({ runChildUpdate: false });
 
     const impact = (bullet: Bullet) => this.handleBulletImpact(bullet);
-    const playerWeapon = new Weapon(this, 'blue', 'bullet-blue', this.bullets, impact, 210);
+    const playerWeapon = new Weapon(
+      this,
+      'blue',
+      'bullet-blue',
+      this.bullets,
+      impact,
+      this.terrainVisibility,
+      210,
+    );
     this.player = new Player(this, 250, MAP_HEIGHT / 2, 'player-blue', this.inkGrid, playerWeapon);
     this.player.setDepth(95).setRotation(-Math.PI / 2);
 
@@ -69,7 +77,15 @@ export class GameScene extends Phaser.Scene {
       [300, 500, 720].map((y) => new Phaser.Math.Vector2(x, y)),
     );
     this.allyBots = allySpawnPoints.map((point) => {
-      const weapon = new Weapon(this, 'blue', 'bullet-blue', this.bullets, impact, 340);
+      const weapon = new Weapon(
+        this,
+        'blue',
+        'bullet-blue',
+        this.bullets,
+        impact,
+        this.terrainVisibility,
+        340,
+      );
       return new Bot(this, point.x, point.y, 'player-blue', 'blue', this.inkGrid, weapon);
     });
 
@@ -77,7 +93,15 @@ export class GameScene extends Phaser.Scene {
       [180, 390, 600, 810, 1020].map((y) => new Phaser.Math.Vector2(x, y)),
     );
     this.enemyBots = enemySpawnPoints.map((point) => {
-      const weapon = new Weapon(this, 'orange', 'bullet-orange', this.bullets, impact, 520);
+      const weapon = new Weapon(
+        this,
+        'orange',
+        'bullet-orange',
+        this.bullets,
+        impact,
+        this.terrainVisibility,
+        520,
+      );
       return new Bot(this, point.x, point.y, 'bot-orange', 'orange', this.inkGrid, weapon);
     });
     this.bots = [...this.allyBots, ...this.enemyBots];
@@ -235,8 +259,14 @@ export class GameScene extends Phaser.Scene {
       this.aimWorld.x - this.player.x,
       this.aimWorld.y - this.player.y,
     );
-    const range = Phaser.Math.Clamp(direction.length(), 50, 100);
     if (direction.lengthSq() === 0) direction.set(1, 0);
+    const angle = direction.angle();
+    const maxRange = this.player.weapon.getMaxRange(
+      this.player.x,
+      this.player.y,
+      angle,
+    );
+    const range = Phaser.Math.Clamp(direction.length(), 50, maxRange);
     return direction.normalize().scale(range).add(new Phaser.Math.Vector2(this.player.x, this.player.y));
   }
 

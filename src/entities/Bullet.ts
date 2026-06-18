@@ -4,7 +4,7 @@ import { Team } from '../types';
 export class Bullet extends Phaser.Physics.Arcade.Sprite {
   readonly team: Team;
   readonly damage = 20;
-  readonly paintRadius = 40;
+  readonly paintRadius = 60;
 
   private remainingLife: number;
   private previousX: number;

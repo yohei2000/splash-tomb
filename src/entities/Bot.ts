@@ -43,10 +43,12 @@ export class Bot extends Phaser.Physics.Arcade.Sprite {
     const toTarget = new Phaser.Math.Vector2(target.x - this.x, target.y - this.y);
     const distance = toTarget.length();
     const direction = distance > 0 ? toTarget.normalize() : toTarget;
+    const aimAngle = Math.atan2(target.y - this.y, target.x - this.x);
+    const maxRange = this.weapon.getMaxRange(this.x, this.y, aimAngle);
     const ink = this.inkGrid.getInkAt(this.x, this.y);
     const multiplier = ink === this.team ? 1.35 : ink === 'none' ? 1 : 0.5;
 
-    if (distance > 100) {
+    if (distance > maxRange) {
       this.setVelocity(direction.x * 155 * multiplier, direction.y * 155 * multiplier);
     } else {
       const desired = distance < 65 ? -0.55 : 0.15;
@@ -56,8 +58,8 @@ export class Bot extends Phaser.Physics.Arcade.Sprite {
       this.weapon.fire(
         this.x,
         this.y,
-        Math.atan2(target.y - this.y, target.x - this.x),
-        Math.min(distance, 100),
+        aimAngle,
+        Math.min(distance, maxRange),
       );
     }
 
@@ -73,7 +75,7 @@ export class Bot extends Phaser.Physics.Arcade.Sprite {
     this.regenerationElapsed += delta;
     while (this.regenerationElapsed >= 1000) {
       this.regenerationElapsed -= 1000;
-      this.hp = Math.min(this.maxHp, this.hp + 2);
+      this.hp = Math.min(this.maxHp, this.hp + 10);
     }
   }
 
