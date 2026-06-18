@@ -326,6 +326,8 @@ export class GameScene extends Phaser.Scene {
     const mask = this.visionMaskGraphics.createGeometryMask();
     mask.invertAlpha = true;
     this.visionOverlay.setMask(mask);
+    this.updateScreenSpaceObject(this.visionOverlay);
+    this.updateScreenSpaceObject(this.visionMaskGraphics);
     this.updateVisionMask();
   }
 
@@ -333,8 +335,10 @@ export class GameScene extends Phaser.Scene {
     if (!this.visionMaskGraphics || !this.player) return;
 
     const camera = this.cameras.main;
-    const screenX = camera.x + (this.player.x - camera.worldView.x) * camera.zoom;
-    const screenY = camera.y + (this.player.y - camera.worldView.y) * camera.zoom;
+    this.updateScreenSpaceObject(this.visionOverlay);
+    this.updateScreenSpaceObject(this.visionMaskGraphics);
+    const screenX = camera.width / 2;
+    const screenY = camera.height / 2;
     const radius = Math.hypot(this.scale.width, this.scale.height) * 1.35;
     const halfFov = Phaser.Math.DegToRad(45);
 
@@ -352,6 +356,18 @@ export class GameScene extends Phaser.Scene {
     );
     this.visionMaskGraphics.closePath();
     this.visionMaskGraphics.fillPath();
+  }
+
+  private updateScreenSpaceObject(
+    object: Phaser.GameObjects.Components.Transform & Phaser.GameObjects.Components.ScrollFactor,
+  ): void {
+    const camera = this.cameras.main;
+    const inverseZoom = 1 / camera.zoom;
+    object.setPosition(
+      camera.width * 0.5 * (1 - inverseZoom),
+      camera.height * 0.5 * (1 - inverseZoom),
+    );
+    object.setScale(inverseZoom);
   }
 
   private handleBulletImpact(bullet: Bullet): void {
