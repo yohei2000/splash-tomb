@@ -29,6 +29,9 @@ export class GameScene extends Phaser.Scene {
   private overlayShade!: Phaser.GameObjects.Rectangle;
   private resultText!: Phaser.GameObjects.Text;
   private restartText!: Phaser.GameObjects.Text;
+  private minimapImage!: Phaser.GameObjects.Image;
+  private minimapBorder!: Phaser.GameObjects.Rectangle;
+  private minimapPlayerMarker!: Phaser.GameObjects.Arc;
   private joystickBase!: Phaser.GameObjects.Arc;
   private joystickKnob!: Phaser.GameObjects.Arc;
   private aimMarker!: Phaser.GameObjects.Arc;
@@ -62,20 +65,17 @@ export class GameScene extends Phaser.Scene {
     this.player = new Player(this, 250, MAP_HEIGHT / 2, 'player-blue', this.inkGrid, playerWeapon);
     this.player.setDepth(95).setRotation(-Math.PI / 2);
 
-    const allySpawnPoints = [
-      new Phaser.Math.Vector2(300, MAP_HEIGHT / 2 - 120),
-      new Phaser.Math.Vector2(300, MAP_HEIGHT / 2 + 120),
-    ];
+    const allySpawnPoints = [280, 390, 500].flatMap((x) =>
+      [300, 500, 720].map((y) => new Phaser.Math.Vector2(x, y)),
+    );
     this.allyBots = allySpawnPoints.map((point) => {
       const weapon = new Weapon(this, 'blue', 'bullet-blue', this.bullets, impact, 340);
       return new Bot(this, point.x, point.y, 'player-blue', 'blue', this.inkGrid, weapon);
     });
 
-    const enemySpawnPoints = [
-      new Phaser.Math.Vector2(MAP_WIDTH - 260, 260),
-      new Phaser.Math.Vector2(MAP_WIDTH - 260, MAP_HEIGHT / 2),
-      new Phaser.Math.Vector2(MAP_WIDTH - 260, MAP_HEIGHT - 260),
-    ];
+    const enemySpawnPoints = [1240, 1400].flatMap((x) =>
+      [180, 390, 600, 810, 1020].map((y) => new Phaser.Math.Vector2(x, y)),
+    );
     this.enemyBots = enemySpawnPoints.map((point) => {
       const weapon = new Weapon(this, 'orange', 'bullet-orange', this.bullets, impact, 520);
       return new Bot(this, point.x, point.y, 'bot-orange', 'orange', this.inkGrid, weapon);
@@ -135,6 +135,7 @@ export class GameScene extends Phaser.Scene {
       this.player.y,
       this.playerFacingAngle,
     );
+    this.updateMinimapPosition();
 
     const remainingMs = Math.max(0, this.matchEndsAt - this.time.now);
     this.timerText.setText(`TIME ${Math.ceil(remainingMs / 1000)}`);
@@ -271,6 +272,18 @@ export class GameScene extends Phaser.Scene {
       .setStrokeStyle(3, TEAM_COLORS.blue, 0.95)
       .setDepth(112)
       .setVisible(false);
+    this.minimapBorder = this.add
+      .rectangle(0, 0, 1, 1, 0x080b12, 0.9)
+      .setStrokeStyle(2, 0xffffff, 0.75)
+      .setDepth(119);
+    this.minimapImage = this.add
+      .image(0, 0, this.inkGrid.minimapTextureKey)
+      .setDepth(120);
+    this.minimapPlayerMarker = this.add
+      .circle(0, 0, 3, 0xffffff, 1)
+      .setStrokeStyle(1, 0x111827, 1)
+      .setDepth(121);
+    this.updateMinimapPosition();
 
     this.leftHint = this.add
       .text(18, this.scale.height - 32, 'LEFT: MOVE', { ...textStyle, fontSize: '12px' })
@@ -315,7 +328,45 @@ export class GameScene extends Phaser.Scene {
       this.overlayShade.setSize(size.width, size.height);
       this.resultText.setPosition(size.width / 2, size.height / 2);
       this.restartText.setPosition(size.width / 2, size.height / 2 + 100);
+      this.updateMinimapPosition();
     });
+  }
+
+  private updateMinimapPosition(): void {
+    if (!this.minimapImage || !this.player) return;
+
+    const camera = this.cameras.main;
+    const screenWidth = Math.min(128, this.scale.width * 0.32);
+    const screenHeight = screenWidth * (MAP_HEIGHT / MAP_WIDTH);
+    const margin = 12;
+    const bottomClearance = 48;
+    const left = this.scale.width - margin - screenWidth;
+    const top = this.scale.height - bottomClearance - screenHeight;
+    const centerScreenX = left + screenWidth / 2;
+    const centerScreenY = top + screenHeight / 2;
+    const inverseZoom = 1 / camera.zoom;
+    const centerWorldX = camera.worldView.x + centerScreenX * inverseZoom;
+    const centerWorldY = camera.worldView.y + centerScreenY * inverseZoom;
+    const worldWidth = screenWidth * inverseZoom;
+    const worldHeight = screenHeight * inverseZoom;
+
+    this.minimapImage
+      .setPosition(centerWorldX, centerWorldY)
+      .setDisplaySize(worldWidth, worldHeight);
+    this.minimapBorder
+      .setPosition(centerWorldX, centerWorldY)
+      .setSize(worldWidth + 8 * inverseZoom, worldHeight + 8 * inverseZoom)
+      .setStrokeStyle(2 * inverseZoom, 0xffffff, 0.75);
+
+    const markerScreenX = left + (this.player.x / MAP_WIDTH) * screenWidth;
+    const markerScreenY = top + (this.player.y / MAP_HEIGHT) * screenHeight;
+    this.minimapPlayerMarker
+      .setPosition(
+        camera.worldView.x + markerScreenX * inverseZoom,
+        camera.worldView.y + markerScreenY * inverseZoom,
+      )
+      .setRadius(3 * inverseZoom)
+      .setStrokeStyle(1 * inverseZoom, 0x111827, 1);
   }
 
   private handleBulletImpact(bullet: Bullet): void {
