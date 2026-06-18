@@ -73,9 +73,15 @@ export class GameScene extends Phaser.Scene {
     this.player = new Player(this, 250, MAP_HEIGHT / 2, 'player-blue', this.inkGrid, playerWeapon);
     this.player.setDepth(95).setRotation(-Math.PI / 2);
 
-    const allySpawnPoints = [280, 390, 500].flatMap((x) =>
-      [300, 500, 720].map((y) => new Phaser.Math.Vector2(x, y)),
-    );
+    const allySpawnPoints = [
+      [280, 300],
+      [280, 500],
+      [280, 720],
+      [390, 300],
+      [390, 500],
+      [390, 720],
+      [500, 600],
+    ].map(([x, y]) => new Phaser.Math.Vector2(x, y));
     this.allyBots = allySpawnPoints.map((point) => {
       const weapon = new Weapon(
         this,
