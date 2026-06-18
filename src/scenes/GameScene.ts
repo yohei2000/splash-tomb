@@ -30,6 +30,7 @@ export class GameScene extends Phaser.Scene {
 
   private joystickBase!: Phaser.GameObjects.Arc;
   private joystickKnob!: Phaser.GameObjects.Arc;
+  private aimMarker!: Phaser.GameObjects.Arc;
   private joystickPointerId: number | null = null;
   private aimPointerId: number | null = null;
   private joystickOrigin = new Phaser.Math.Vector2();
@@ -78,7 +79,7 @@ export class GameScene extends Phaser.Scene {
     this.bots = [...this.allyBots, ...this.enemyBots];
 
     this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
-    this.cameras.main.setZoom(1);
+    this.cameras.main.setZoom(0.75);
     this.setupInput();
     this.createHud();
 
@@ -105,14 +106,23 @@ export class GameScene extends Phaser.Scene {
     }
 
     if (this.aimPointerId !== null && this.player.isAlive) {
+      const target = this.getPlayerAimTarget();
       const angle = Phaser.Math.Angle.Between(
         this.player.x,
         this.player.y,
-        this.aimWorld.x,
-        this.aimWorld.y,
+        target.x,
+        target.y,
       );
       this.player.setRotation(angle);
-      this.player.weapon.fire(this.player.x, this.player.y, angle);
+      this.aimMarker.setPosition(target.x, target.y).setVisible(true);
+      this.player.weapon.fire(
+        this.player.x,
+        this.player.y,
+        angle,
+        Phaser.Math.Distance.Between(this.player.x, this.player.y, target.x, target.y),
+      );
+    } else {
+      this.aimMarker.setVisible(false);
     }
 
     const remainingMs = Math.max(0, this.matchEndsAt - this.time.now);
@@ -176,7 +186,10 @@ export class GameScene extends Phaser.Scene {
         this.joystickBase.setVisible(false);
         this.joystickKnob.setVisible(false);
       }
-      if (pointer.id === this.aimPointerId) this.aimPointerId = null;
+      if (pointer.id === this.aimPointerId) {
+        this.aimPointerId = null;
+        this.aimMarker.setVisible(false);
+      }
     });
 
     this.input.on('pointerupoutside', (pointer: Phaser.Input.Pointer) => {
@@ -186,7 +199,10 @@ export class GameScene extends Phaser.Scene {
         this.joystickBase.setVisible(false);
         this.joystickKnob.setVisible(false);
       }
-      if (pointer.id === this.aimPointerId) this.aimPointerId = null;
+      if (pointer.id === this.aimPointerId) {
+        this.aimPointerId = null;
+        this.aimMarker.setVisible(false);
+      }
     });
   }
 
@@ -201,6 +217,16 @@ export class GameScene extends Phaser.Scene {
   private updateAim(pointer: Phaser.Input.Pointer): void {
     const worldPoint = pointer.positionToCamera(this.cameras.main) as Phaser.Math.Vector2;
     this.aimWorld.copy(worldPoint);
+  }
+
+  private getPlayerAimTarget(): Phaser.Math.Vector2 {
+    const direction = new Phaser.Math.Vector2(
+      this.aimWorld.x - this.player.x,
+      this.aimWorld.y - this.player.y,
+    );
+    const range = Phaser.Math.Clamp(direction.length(), 100, 360);
+    if (direction.lengthSq() === 0) direction.set(1, 0);
+    return direction.normalize().scale(range).add(new Phaser.Math.Vector2(this.player.x, this.player.y));
   }
 
   private createHud(): void {
@@ -229,6 +255,11 @@ export class GameScene extends Phaser.Scene {
       .circle(0, 0, 25, TEAM_COLORS.blue, 0.65)
       .setScrollFactor(0)
       .setDepth(111)
+      .setVisible(false);
+    this.aimMarker = this.add
+      .circle(0, 0, 12, 0xffffff, 0.15)
+      .setStrokeStyle(3, TEAM_COLORS.blue, 0.95)
+      .setDepth(112)
       .setVisible(false);
 
     this.leftHint = this.add
