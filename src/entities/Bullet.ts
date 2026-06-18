@@ -4,9 +4,9 @@ import { Team } from '../types';
 export class Bullet extends Phaser.Physics.Arcade.Sprite {
   readonly team: Team;
   readonly damage = 24;
-  readonly paintRadius = 56;
+  readonly paintRadius = 64;
 
-  private remainingLife = 600;
+  private remainingLife = 1000;
   private hasImpacted = false;
 
   constructor(
@@ -22,8 +22,8 @@ export class Bullet extends Phaser.Physics.Arcade.Sprite {
     this.team = team;
     scene.add.existing(this);
     scene.physics.add.existing(this);
-    this.setDepth(5);
-    this.setCircle(6);
+    this.setDepth(5).setScale(1.45);
+    this.setCircle(7);
     this.setVelocity(velocity.x, velocity.y);
   }
 

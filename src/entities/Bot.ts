@@ -5,7 +5,6 @@ import { Team } from '../types';
 import { Player } from './Player';
 
 export class Bot extends Phaser.Physics.Arcade.Sprite {
-  readonly team: Team = 'orange';
   readonly maxHp = 50;
   hp = this.maxHp;
   isAlive = true;
@@ -17,35 +16,36 @@ export class Bot extends Phaser.Physics.Arcade.Sprite {
     x: number,
     y: number,
     texture: string,
+    readonly team: Team,
     private readonly inkGrid: InkGrid,
     readonly weapon: Weapon,
   ) {
     super(scene, x, y, texture);
     scene.add.existing(this);
     scene.physics.add.existing(this);
-    this.setDisplaySize(60, 60).setCollideWorldBounds(true).setDepth(4).setCircle(40, 40, 40);
+    this.setDisplaySize(60, 60).setCollideWorldBounds(true).setDepth(4).setCircle(55, 25, 25);
   }
 
-  updateBot(player: Player): void {
-    if (!this.isAlive || !player.isAlive) {
+  updateBot(target?: Player | Bot): void {
+    if (!this.isAlive || !target?.isAlive) {
       this.setVelocity(0);
       return;
     }
 
-    const toPlayer = new Phaser.Math.Vector2(player.x - this.x, player.y - this.y);
-    const distance = toPlayer.length();
-    const direction = distance > 0 ? toPlayer.normalize() : toPlayer;
+    const toTarget = new Phaser.Math.Vector2(target.x - this.x, target.y - this.y);
+    const distance = toTarget.length();
+    const direction = distance > 0 ? toTarget.normalize() : toTarget;
     const ink = this.inkGrid.getInkAt(this.x, this.y);
-    const multiplier = ink === this.team ? 1.35 : ink === 'blue' ? 0.5 : 1;
+    const multiplier = ink === this.team ? 1.35 : ink === 'none' ? 1 : 0.5;
 
-    if (distance > 300) {
+    if (distance > 420) {
       this.setVelocity(direction.x * 155 * multiplier, direction.y * 155 * multiplier);
     } else {
-      const desired = distance < 190 ? -0.55 : 0.15;
+      const desired = distance < 260 ? -0.55 : 0.15;
       const strafe = new Phaser.Math.Vector2(-direction.y, direction.x).scale(this.strafeDirection);
       const move = direction.clone().scale(desired).add(strafe.scale(0.75)).normalize();
       this.setVelocity(move.x * 145 * multiplier, move.y * 145 * multiplier);
-      this.weapon.fire(this.x, this.y, Math.atan2(player.y - this.y, player.x - this.x));
+      this.weapon.fire(this.x, this.y, Math.atan2(target.y - this.y, target.x - this.x));
     }
 
     if (Phaser.Math.Between(0, 500) === 0) this.strafeDirection *= -1;

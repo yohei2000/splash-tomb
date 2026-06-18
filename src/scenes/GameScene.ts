@@ -12,6 +12,8 @@ export class GameScene extends Phaser.Scene {
   private inkGrid!: InkGrid;
   private player!: Player;
   private bots: Bot[] = [];
+  private allyBots: Bot[] = [];
+  private enemyBots: Bot[] = [];
   private bullets!: Phaser.Physics.Arcade.Group;
   private matchEndsAt = 0;
   private matchOver = false;
@@ -55,15 +57,25 @@ export class GameScene extends Phaser.Scene {
     const playerWeapon = new Weapon(this, 'blue', 'bullet-blue', this.bullets, impact, 210);
     this.player = new Player(this, 250, MAP_HEIGHT / 2, 'player-blue', this.inkGrid, playerWeapon);
 
-    const spawnPoints = [
+    const allySpawnPoints = [
+      new Phaser.Math.Vector2(300, MAP_HEIGHT / 2 - 120),
+      new Phaser.Math.Vector2(300, MAP_HEIGHT / 2 + 120),
+    ];
+    this.allyBots = allySpawnPoints.map((point) => {
+      const weapon = new Weapon(this, 'blue', 'bullet-blue', this.bullets, impact, 340);
+      return new Bot(this, point.x, point.y, 'player-blue', 'blue', this.inkGrid, weapon);
+    });
+
+    const enemySpawnPoints = [
       new Phaser.Math.Vector2(MAP_WIDTH - 260, 260),
       new Phaser.Math.Vector2(MAP_WIDTH - 260, MAP_HEIGHT / 2),
       new Phaser.Math.Vector2(MAP_WIDTH - 260, MAP_HEIGHT - 260),
     ];
-    this.bots = spawnPoints.map((point) => {
+    this.enemyBots = enemySpawnPoints.map((point) => {
       const weapon = new Weapon(this, 'orange', 'bullet-orange', this.bullets, impact, 520);
-      return new Bot(this, point.x, point.y, 'bot-orange', this.inkGrid, weapon);
+      return new Bot(this, point.x, point.y, 'bot-orange', 'orange', this.inkGrid, weapon);
     });
+    this.bots = [...this.allyBots, ...this.enemyBots];
 
     this.physics.add.overlap(this.bullets, this.player, (bulletObject) => {
       const bullet = bulletObject as Bullet;
@@ -80,7 +92,7 @@ export class GameScene extends Phaser.Scene {
         if (bullet.team !== bot.team && bot.isAlive) {
           const died = bot.takeDamage(bullet.damage);
           bullet.impact();
-          if (died) this.scheduleRespawn(bot, 'orange');
+          if (died) this.scheduleRespawn(bot, bot.team);
         }
       });
     }
@@ -91,7 +103,7 @@ export class GameScene extends Phaser.Scene {
     this.createHud();
 
     this.inkGrid.paintCircle(this.player.x, this.player.y, 100, 'blue');
-    for (const bot of this.bots) this.inkGrid.paintCircle(bot.x, bot.y, 90, 'orange');
+    for (const bot of this.bots) this.inkGrid.paintCircle(bot.x, bot.y, 90, bot.team);
     this.matchEndsAt = this.time.now + MATCH_DURATION_MS;
   }
 
@@ -99,7 +111,13 @@ export class GameScene extends Phaser.Scene {
     if (this.matchOver) return;
 
     this.player.updatePlayer();
-    for (const bot of this.bots) bot.updateBot(this.player);
+    const blueTeam: Array<Player | Bot> = [this.player, ...this.allyBots];
+    for (const bot of this.allyBots) {
+      bot.updateBot(this.findNearestTarget(bot, this.enemyBots));
+    }
+    for (const bot of this.enemyBots) {
+      bot.updateBot(this.findNearestTarget(bot, blueTeam));
+    }
     for (const bullet of this.bullets.getChildren() as Bullet[]) bullet.updateBullet(delta);
 
     if (this.aimPointerId !== null && this.player.isAlive) {
@@ -277,6 +295,25 @@ export class GameScene extends Phaser.Scene {
 
   private handleBulletImpact(bullet: Bullet): void {
     this.inkGrid.paintCircle(bullet.x, bullet.y, bullet.paintRadius, bullet.team);
+  }
+
+  private findNearestTarget<T extends Player | Bot>(
+    source: Bot,
+    candidates: T[],
+  ): T | undefined {
+    let nearest: T | undefined;
+    let nearestDistanceSq = Number.POSITIVE_INFINITY;
+
+    for (const candidate of candidates) {
+      if (!candidate.isAlive) continue;
+      const distanceSq = Phaser.Math.Distance.Squared(source.x, source.y, candidate.x, candidate.y);
+      if (distanceSq < nearestDistanceSq) {
+        nearest = candidate;
+        nearestDistanceSq = distanceSq;
+      }
+    }
+
+    return nearest;
   }
 
   private scheduleRespawn(entity: Player | Bot, team: Team): void {
