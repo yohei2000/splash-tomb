@@ -3,6 +3,7 @@ import { Bot } from '../entities/Bot';
 import { Bullet } from '../entities/Bullet';
 import { Player } from '../entities/Player';
 import { InkGrid } from '../systems/InkGrid';
+import { TerrainVisibility } from '../systems/TerrainVisibility';
 import { Weapon } from '../systems/Weapon';
 import { MAP_HEIGHT, MAP_WIDTH, TEAM_COLORS, Team } from '../types';
 
@@ -15,6 +16,7 @@ export class GameScene extends Phaser.Scene {
   private allyBots: Bot[] = [];
   private enemyBots: Bot[] = [];
   private bullets!: Phaser.Physics.Arcade.Group;
+  private terrainVisibility!: TerrainVisibility;
   private matchEndsAt = 0;
   private matchOver = false;
 
@@ -27,9 +29,6 @@ export class GameScene extends Phaser.Scene {
   private overlayShade!: Phaser.GameObjects.Rectangle;
   private resultText!: Phaser.GameObjects.Text;
   private restartText!: Phaser.GameObjects.Text;
-  private visionOverlay!: Phaser.GameObjects.Rectangle;
-  private visionMaskGraphics!: Phaser.GameObjects.Graphics;
-
   private joystickBase!: Phaser.GameObjects.Arc;
   private joystickKnob!: Phaser.GameObjects.Arc;
   private aimMarker!: Phaser.GameObjects.Arc;
@@ -52,7 +51,8 @@ export class GameScene extends Phaser.Scene {
     this.createTextures();
     this.physics.world.setBounds(0, 0, MAP_WIDTH, MAP_HEIGHT);
     this.cameras.main.setBounds(0, 0, MAP_WIDTH, MAP_HEIGHT);
-    this.createMapBackground();
+    this.terrainVisibility = new TerrainVisibility(this);
+    this.createMapGrid();
 
     this.inkGrid = new InkGrid(this);
     this.bullets = this.physics.add.group({ runChildUpdate: false });
@@ -85,7 +85,6 @@ export class GameScene extends Phaser.Scene {
     this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
     this.cameras.main.setZoom(0.75);
     this.setupInput();
-    this.createVisionMask();
     this.createHud();
 
     this.inkGrid.paintCircle(this.player.x, this.player.y, 100, 'blue');
@@ -130,7 +129,12 @@ export class GameScene extends Phaser.Scene {
       this.aimMarker.setVisible(false);
     }
 
-    this.updateVisionMask();
+    this.terrainVisibility.update(
+      delta,
+      this.player.x,
+      this.player.y,
+      this.playerFacingAngle,
+    );
 
     const remainingMs = Math.max(0, this.matchEndsAt - this.time.now);
     this.timerText.setText(`TIME ${Math.ceil(remainingMs / 1000)}`);
@@ -155,9 +159,8 @@ export class GameScene extends Phaser.Scene {
     makeCircle('bullet-orange', TEAM_COLORS.orange, 7, 0xffd2ad);
   }
 
-  private createMapBackground(): void {
-    const graphics = this.add.graphics().setDepth(-10);
-    graphics.fillStyle(0x242b38, 1).fillRect(0, 0, MAP_WIDTH, MAP_HEIGHT);
+  private createMapGrid(): void {
+    const graphics = this.add.graphics().setDepth(-9);
     graphics.lineStyle(1, 0x3a4352, 0.35);
     for (let x = 0; x <= MAP_WIDTH; x += 16) graphics.lineBetween(x, 0, x, MAP_HEIGHT);
     for (let y = 0; y <= MAP_HEIGHT; y += 16) graphics.lineBetween(0, y, MAP_WIDTH, y);
@@ -306,7 +309,6 @@ export class GameScene extends Phaser.Scene {
     this.overlay.add([this.overlayShade, this.resultText, this.restartText]);
 
     this.scale.on('resize', (size: Phaser.Structs.Size) => {
-      this.visionOverlay.setSize(size.width, size.height);
       this.coverageText.setX(size.width / 2);
       this.leftHint.setY(size.height - 32);
       this.rightHint.setPosition(size.width - 18, size.height - 32);
@@ -314,60 +316,6 @@ export class GameScene extends Phaser.Scene {
       this.resultText.setPosition(size.width / 2, size.height / 2);
       this.restartText.setPosition(size.width / 2, size.height / 2 + 100);
     });
-  }
-
-  private createVisionMask(): void {
-    this.visionOverlay = this.add
-      .rectangle(0, 0, this.scale.width, this.scale.height, 0x000000, 1)
-      .setOrigin(0)
-      .setScrollFactor(0)
-      .setDepth(90);
-    this.visionMaskGraphics = this.make.graphics({ x: 0, y: 0 }).setScrollFactor(0);
-    const mask = this.visionMaskGraphics.createGeometryMask();
-    mask.invertAlpha = true;
-    this.visionOverlay.setMask(mask);
-    this.updateScreenSpaceObject(this.visionOverlay);
-    this.updateScreenSpaceObject(this.visionMaskGraphics);
-    this.updateVisionMask();
-  }
-
-  private updateVisionMask(): void {
-    if (!this.visionMaskGraphics || !this.player) return;
-
-    const camera = this.cameras.main;
-    this.updateScreenSpaceObject(this.visionOverlay);
-    this.updateScreenSpaceObject(this.visionMaskGraphics);
-    const screenX = camera.width / 2;
-    const screenY = camera.height / 2;
-    const radius = Math.hypot(this.scale.width, this.scale.height) * 1.35;
-    const halfFov = Phaser.Math.DegToRad(45);
-
-    this.visionMaskGraphics.clear();
-    this.visionMaskGraphics.fillStyle(0xffffff, 1);
-    this.visionMaskGraphics.beginPath();
-    this.visionMaskGraphics.moveTo(screenX, screenY);
-    this.visionMaskGraphics.arc(
-      screenX,
-      screenY,
-      radius,
-      this.playerFacingAngle - halfFov,
-      this.playerFacingAngle + halfFov,
-      false,
-    );
-    this.visionMaskGraphics.closePath();
-    this.visionMaskGraphics.fillPath();
-  }
-
-  private updateScreenSpaceObject(
-    object: Phaser.GameObjects.Components.Transform & Phaser.GameObjects.Components.ScrollFactor,
-  ): void {
-    const camera = this.cameras.main;
-    const inverseZoom = 1 / camera.zoom;
-    object.setPosition(
-      camera.width * 0.5 * (1 - inverseZoom),
-      camera.height * 0.5 * (1 - inverseZoom),
-    );
-    object.setScale(inverseZoom);
   }
 
   private handleBulletImpact(bullet: Bullet): void {
