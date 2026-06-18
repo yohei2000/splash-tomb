@@ -19,7 +19,7 @@ export class Weapon {
     if (now < this.nextShotAt) return false;
 
     this.nextShotAt = now + this.cooldown;
-    const speed = 2600;
+    const speed = 1400;
     const muzzleDistance = 24;
     const velocity = new Phaser.Math.Vector2(Math.cos(angle), Math.sin(angle)).scale(speed);
     const bullet = new Bullet(

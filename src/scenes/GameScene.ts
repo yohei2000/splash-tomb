@@ -100,7 +100,6 @@ export class GameScene extends Phaser.Scene {
     }
     for (const bullet of this.bullets.getChildren() as Bullet[]) {
       if (!bullet.active) continue;
-      this.paintBulletTrail(bullet);
       this.resolveBulletHit(bullet);
       bullet.updateBullet(delta);
     }
@@ -280,22 +279,6 @@ export class GameScene extends Phaser.Scene {
 
   private handleBulletImpact(bullet: Bullet): void {
     this.inkGrid.paintCircle(bullet.x, bullet.y, bullet.paintRadius, bullet.team);
-  }
-
-  private paintBulletTrail(bullet: Bullet): void {
-    const line = bullet.getTravelLine();
-    const length = Phaser.Geom.Line.Length(line);
-    const steps = Math.max(1, Math.ceil(length / 24));
-
-    for (let step = 1; step <= steps; step += 1) {
-      const t = step / steps;
-      this.inkGrid.paintCircle(
-        Phaser.Math.Linear(line.x1, line.x2, t),
-        Phaser.Math.Linear(line.y1, line.y2, t),
-        18,
-        bullet.team,
-      );
-    }
   }
 
   private resolveBulletHit(bullet: Bullet): void {

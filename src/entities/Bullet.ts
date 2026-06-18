@@ -6,9 +6,9 @@ export class Bullet extends Phaser.Physics.Arcade.Sprite {
   readonly damage = 50;
   readonly paintRadius = 72;
 
-  private remainingLife = 450;
+  private remainingLife = 180;
   private traveledDistance = 0;
-  private readonly maxDistance = 1100;
+  private readonly maxDistance = 170;
   private previousX: number;
   private previousY: number;
   private hasImpacted = false;
